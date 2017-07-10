@@ -1,0 +1,32 @@
+{
+  "name": "",
+  "version": "0.1.0",
+  "description": "",
+  "main": "index.html",
+  "scripts": {
+    "start": "gulp"
+  },
+  "dependencies": {
+    "codemirror": "^5.27.4",
+    "golden-layout": "^1.5.8",
+    "jquery-treetable": "^3.2.0"
+  },
+  "engines": {
+    "javascript": "es6"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sirmick/bed"
+  },
+  "keywords": [
+  ],
+  "author": "Michael Cloonan",
+  "contributors": [
+
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "gulp": "^3.9.1",
+    "gulp-webserver": "^0.9.1"
+  }
+}

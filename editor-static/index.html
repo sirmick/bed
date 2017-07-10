@@ -1,0 +1,256 @@
+<html>
+<head>
+  <script src="http://localhost:35729/livereload.js"></script>
+  <script type="text/javascript" src="node_modules/jquery/dist/jquery.min.js"></script>
+  <script type="text/javascript" src="node_modules/lodash/dist/lodash.min.js"></script>
+  <script type="text/javascript" src="node_modules/golden-layout/dist/goldenlayout.min.js"></script>
+  <script type="text/javascript" src="node_modules/codemirror/lib/codemirror.js"></script>
+  <script type="text/javascript" src="node_modules/jquery-treetable/jquery.treetable.js"></script>
+  <link type="text/css" rel="stylesheet" href="node_modules/golden-layout/src/css/goldenlayout-base.css" />
+  <link type="text/css" rel="stylesheet" href="node_modules/golden-layout/src/css/goldenlayout-light-theme.css" />
+  <link type="text/css" rel="stylesheet" href="node_modules/codemirror/lib/codemirror.css" />
+  <link type="text/css" rel="stylesheet" href="node_modules/codemirror/theme/elegant.css" />
+  <link type="text/css" rel="stylesheet" href="node_modules/jquery-treetable/css/jquery.treetable.css" />
+  <link type="text/css" rel="stylesheet" href="node_modules/jquery-treetable/css/jquery.treetable.theme.default.css" />
+  <link type="text/css" rel="stylesheet" href="node_modules/jquery-treetable/css/screen.css" />
+  <script type="text/template" id="tree-template">
+    <table id="tree" class="treetable" style="border-style:none;">
+      <thead>
+        <tr>
+          <th style="white-space:nowrap">name</th>
+          <th style="min-width: 100px">mtime</th>
+          <th style="min-width: 80px">size</th>
+          <th style="min-width: 80px">owner</th>
+          <th style="min-width: 80px">group</th>
+          <th style="min-width: 90px">permissions</th>
+      </thead>
+      <tbody>
+      </tbody>
+      </tr>
+    </table>
+  </script>
+  <style>
+  .nowrap {
+    white-space:nowrap;
+  }
+  .CodeMirror {
+    border: 1px solid #eee;
+    height: auto;
+  }
+
+  </style>
+
+</head>
+<body id="ide">
+  <!--<div id="ide" style="height:calc( 100% - 28px ); width( 100% - 10px )"></div>-->
+  <!--<div style="height:25px;"><code id="info"></code><code id="flash" style="font-weight: bold;"></code></div>-->
+<script>
+
+
+class Node {
+  constructor(path, data, parent){
+    this.data = data
+    if (!this.data.size){
+      this.data.size = '--'
+    }
+    if (this.data.type == 'directory'){
+      this.loaded = false;
+    }
+    var mtime = new Date(parseInt(this.data.mtime)*1000);
+    this.data.mtime = mtime
+    var permsTable = {
+      '7': 'rwx',
+      '6': 'rw-',
+      '5': 'r-x',
+      '4': 'r--',
+      '3': '-wx',
+      '2': '-w-',
+      '1': '--x',
+      '0': '---'
+    }
+    var perms = this.data.permissions.toString(8)
+    this.data.permissions = permsTable[perms[0]]+permsTable[perms[1]]+permsTable[perms[2]]
+    this.data.modifiedTime = `${mtime.getFullYear()}-${mtime.getMonth()}-${mtime.getDate()} ${mtime.getHours()}:${mtime.getMinutes()}`
+    this.path = path
+    this.parent = parent
+    this.filename = _.last(path.split('/'))
+  }
+}
+
+class Editor {
+  constructor(){
+    this.server = 'http://localhost:18080'
+    this.filesystem = {}
+  }
+  template(name){
+    var template = $(name).html();
+    return template;
+  }
+  addFile(node){
+    node.id = _.keys(this.filesystem).length
+    this.filesystem[node.path] = node
+  }
+  async load(node){
+    var r = await fetch(this.server+"/info");
+    var r = await r.json();
+    var info = `${r['user']}@${['hostname']}${r['cwd']}`
+    $('#info').text(info)
+    await this.dir(r['initial_dir'], null)
+  }
+
+  flash(text, color){
+    $('#flash').css('color', color);
+    $('#flash').text(text);
+    $('#flash').fadeIn(1000).fadeOut(500);
+  }
+
+  async read(node){
+    if(node.editor) return;
+    var r = await fetch(this.server+"/read?p="+node.path);
+    var contents = await r.text();
+    if(r.status != 200){
+      return this.flash(contents, 'red')
+    }
+
+    this.layout.registerComponent( node.path, function( container, state ){
+      container.getElement().html(`<div id="e${node.id}"></div>`);
+    });
+
+    var component = {
+      type: 'component',
+      componentName: node.path,
+      componentState: {  }
+    }
+
+    this.layout.root.contentItems[0].contentItems[1].addChild( component );
+
+    node.editor = CodeMirror(function(elt) {$('#e'+node.id).replaceWith(elt);},
+      {
+        value: '',
+        lineNumbers: true,
+        styleActiveLine: true,
+        matchBrackets: true,
+        theme: 'elegant',
+        value: contents,
+      }
+    );
+    //node.editor.setSize('100%', '100%')
+
+  }
+  async dir(path, parent){
+    var r = await fetch(this.server+"/ls?p="+path);
+    var dir = await r.json();
+    var filenames = _.keys(dir);
+    filenames.sort();
+    var files = []
+    for(var filename of filenames){
+      var node = new Node(filename, dir[filename], parent);
+      this.addFile(node)
+      if(node.filename == '.') continue
+      files.push(node)
+    }
+    for(var node of files){
+      var parentId = '';
+      if (parent) parentId = ` data-tt-parent-id="${parent.path}"`
+      var klass = 'file'
+      var type = ''
+      if (node.data.type == 'directory') {
+        klass = 'folder'
+        type = ' data-tt-branch="true"'
+      }
+      var row = `<tr data-tt-id="${node.path}"${parentId}${type}>
+        <td class="nowrap"><span class="${klass}">${node.filename}</folder></td>
+        <td class="nowrap">${node.data.modifiedTime}</td>
+        <td class="nowrap">${node.data.size}</td>
+        <td class="nowrap">${node.data.owner.name}</td>
+        <td class="nowrap">${node.data.group.name}</td>
+        <td class="nowrap">${node.data.permissions}</td>
+      </tr>\n`
+      var parentRow = null
+      if (parent) parentRow = $("#tree").treetable("node", parent.path)
+      $("#tree").treetable("loadBranch",parentRow,row);
+    }
+  }
+
+  init(){
+    var config = {
+      settings: {
+        showPopoutIcon: false
+      },
+      content: [{
+        type: 'row',
+        content: [
+          {
+            type:'component',
+            componentName: 'tree',
+            componentState: {  },
+            isClosable: false,
+          },
+          {
+            type:'stack',
+            isClosable: false,
+            content: [
+
+            ]
+          },
+        ]
+      }]
+    };{}
+    this.layout = new GoldenLayout(config, $('#ide'));
+    var treeTemplate = this.template('#tree-template');
+    this.layout.registerComponent( 'tree', function( container, state ){
+      container.getElement().html(treeTemplate);
+    });
+
+    var _this = this;
+    this.layout.on('initialised',()=>{
+      $("#tree").treetable({
+        expandable: true,
+        onInitialized: ()=>{
+          this.load();
+        },
+        onNodeCollapse: function(e) {
+          _this.collapse($(this.row).data("tt-id"));
+        },
+        onNodeExpand: function(e)  {
+          _this.expand($(this.row).data("tt-id"))
+        }
+      });
+      $("#tree tbody").on("mousedown", "tr", function() {
+        _this.select(this)
+      });
+    });
+
+    this.layout.init();
+  }
+
+  async expand(path){
+    var node = this.filesystem[path]
+    if(node.loaded) return
+    this.dir(path, node);
+    node.loaded = true;
+  }
+
+  collapse(path){
+
+  }
+
+  select(tr){
+    var path = $(tr).data("tt-id")
+    $(".selected").not(tr).removeClass("selected");
+    $(tr).toggleClass("selected");
+    var node = this.filesystem[path]
+    if (node.data.type == 'file'){
+      this.read(node)
+    }
+  }
+
+
+}
+
+window.editor = new Editor();
+window.editor.init();
+
+</script>
+
+</body>
