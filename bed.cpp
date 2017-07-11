@@ -171,7 +171,11 @@ int main(int argc, char **argv, char** envp)
     }
 
     if (arguments.count("help")) {
-      std::cout << keywork_options << '\n';
+      std::cout
+        << "Bed (Browser EDitor) is a browser based text editor, you start bed on your remote machine pointing to a directory or file you wish to edit and then use your browser to connect and edit\n"
+        << "Usage: bed <options> to-edit\n"
+        << keywork_options
+        << endl;
       exit(0);
     }
 
