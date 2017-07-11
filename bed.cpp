@@ -245,15 +245,27 @@ int main(int argc, char **argv, char** envp)
   ([](const request& req){
     string q = req.url_params.get("p");
     path p(q);
-    if (!exists(p)) return response(404);
+    if (!exists(p)) return response(404, "404 File not found");
     if (!is_regular_file(p)) return response(405, "405 Not a file");
     if(file_size(p) > 100*KB) return response(412, "412 Too large");
     stringstream buffer;
-    std::ifstream file(p.string());
+    boost::filesystem::ifstream file(p.string());
     if (!file.good()) return response(403, "403 Can't read");
     buffer << file.rdbuf();
     return response(200, buffer.str());
   });
+
+  CROW_ROUTE(app, "/write").methods("POST"_method)
+  ([](const request& req){
+    string q = req.url_params.get("p");
+    path p(q);
+    boost::filesystem::ofstream file(p.string());
+    if (!file.good()) return response(403, "403 Can't write");
+    file << req.body;
+    if (!file.good()) return response(403, "403 Can't write");
+    return response(200);
+  });
+
 
   CROW_ROUTE(app, "/info")
   ([args, env, hostname, initial_file, initial_dir](){{}

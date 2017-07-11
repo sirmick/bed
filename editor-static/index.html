@@ -16,14 +16,15 @@
   <link type="text/css" rel="stylesheet" href="node_modules/font-awesome/css/font-awesome.min.css" />
   <script type="text/template" id="editor-template">
     <div class="toolbar">
-      <a class="icon" id="s{{id}}"><i class="fa fa-floppy-o"></i>Refresh</a>
-      <a class="icon" id="r{{id}}"><i class="fa fa-refresh"></i>Save</a>
+      <a class="icon" id="editor-save-{{id}}"><i class="fa fa-floppy-o"></i>Save</a>
+      <a class="icon" id="editor-refresh-{{id}}"><i class="fa fa-refresh"></i>Refresh</a>
     </div>
-    <div id="e{{id}}"></div>
+    <div id="editor-{{id}}"></div>
   </script>
   <script type="text/template" id="tree-template">
     <div class="toolbar">
-      <a class="icon"><i class="fa fa-refresh"></i>Refresh</a>
+      <a class="icon" id="tree-refresh"><i class="fa fa-refresh"></i>Refresh</a>
+      <a class="icon" id="tree-new"><i class="fa fa-file-code-o"></i>New File</a>
     </div>
     <table id="tree" class="treetable tree">
       <thead>
@@ -40,17 +41,23 @@
       </tr>
     </table>
   </script>
+  <script type="text/template" id="info-template">
+    <h3>Use the tree to the left to open a file</h3>
+    <pre id="info-info"></pre>
+    <pre id="info-detailed"></pre>
+  </script>
   <style>
   .nowrap {
     white-space:nowrap;
   }
   .CodeMirror {
-    border: 1px solid #eee;
+    border: 1px solid #777777;
     height: auto;
     font-size:small;
   }
   .tree{
     overflow: hidden;
+    margin: 0px !important;
     border-style:none !important;
     font-family:monospace;
     font-size:small !important;
@@ -68,7 +75,12 @@
     margin-right: 2px;
   }
   .toolbar {
-    margin: 5px;
+    margin: 0px;
+    border-style: solid;
+    border-top: 1px #777777 solid;
+    border-bottom: none;
+    border-left: none;
+    border-right: none;
   }
   .icon:hover {
     background-color: rgba(96, 147, 245, 1);
@@ -91,7 +103,7 @@ class Node {
       this.data.size = '--'
     }
     if (this.data.type == 'directory'){
-      this.loaded = false;
+      this.children = null
     }
     var mtime = new Date(parseInt(this.data.mtime)*1000);
     this.data.mtime = mtime
@@ -119,6 +131,7 @@ class Editor {
   constructor(){
     this.server = location.href
     this.filesystem = {}
+    this.expanded = {}
   }
   template(name){
     var template = $(name).html();
@@ -127,13 +140,6 @@ class Editor {
   addFile(node){
     node.id = _.keys(this.filesystem).length
     this.filesystem[node.path] = node
-  }
-  async load(node){
-    var r = await fetch(this.server+"info");
-    var r = await r.json();
-    var info = `${r['user']}@${['hostname']}${r['cwd']}`
-    $('#info').text(info)
-    await this.dir(r['initial_dir'], null)
   }
 
   flash(text, color){
@@ -151,20 +157,20 @@ class Editor {
     }
 
     var editorTemplate = this.template('#editor-template').replace(/\{\{id\}\}/g, node.id)
-    console.log(editorTemplate)
     this.layout.registerComponent( node.path, function( container, state ){
       container.getElement().html(editorTemplate);
     });
 
     var component = {
       type: 'component',
+      title: node.filename,
       componentName: node.path,
       componentState: {  }
     }
 
     this.layout.root.contentItems[0].contentItems[1].addChild( component );
 
-    node.editor = CodeMirror(function(elt) {$('#e'+node.id).replaceWith(elt);},
+    node.editor = CodeMirror(function(elt) {$('#editor-'+node.id).replaceWith(elt);},
       {
         value: '',
         lineNumbers: true,
@@ -174,20 +180,52 @@ class Editor {
         value: contents,
       }
     );
-    //node.editor.setSize('100%', '100%')
 
+    $('#editor-save-'+node.id).on('click', async ()=>{
+      var contents = node.editor.getValue()
+      var r = await fetch(this.server+'write?p='+node.path, {
+        method: 'POST',
+        body: contents
+      });
+    })
+
+    $('#editor-refresh-'+node.id).on('click', async ()=>{
+      var r = await fetch(this.server+"read?p="+node.path);
+      var contents = await r.text();
+      if(r.status != 200){
+        return this.flash(contents, 'red')
+      }
+      node.editor.setValue(contents);
+    })
+    //node.editor.setSize('100%', '100%')
   }
+
+  async load(onTreeLoad){
+    var r = await fetch(this.server+"info");
+    var r = await r.json();
+    var info = `${r['user']}@${r['hostname']}${r['cwd']}`
+    console.log(r)
+    $('#info-info').text(info)
+    $('#info-detailed').text(JSON.stringify(r['env'], null, 2))
+    await this.dir(r['initial_dir'], null)
+    if(onTreeLoad) onTreeLoad()
+  }
+
   async dir(path, parent){
-    var r = await fetch(this.server+"ls?p="+path);
-    var dir = await r.json();
-    var filenames = _.keys(dir);
-    filenames.sort();
-    var files = []
-    for(var filename of filenames){
-      var node = new Node(filename, dir[filename], parent);
-      this.addFile(node)
-      if(node.filename == '.') continue
-      files.push(node)
+    if (parent && parent.children){
+      files = parent.children
+    } else {
+      var r = await fetch(this.server+"ls?p="+path);
+      var dir = await r.json();
+      var filenames = _.keys(dir);
+      filenames.sort();
+      var files = []
+      for(var filename of filenames){
+        var node = new Node(filename, dir[filename], parent);
+        this.addFile(node)
+        if(node.filename == '.') continue
+        files.push(node)
+      }
     }
     for(var node of files){
       var parentId = '';
@@ -207,7 +245,10 @@ class Editor {
         <td class="nowrap">${node.data.permissions}</td>
       </tr>\n`
       var parentRow = null
-      if (parent) parentRow = $("#tree").treetable("node", parent.path)
+      if (parent) {
+        parentRow = $("#tree").treetable("node", parent.path)
+        parent.children = files;
+      }
       $("#tree").treetable("loadBranch",parentRow,row);
     }
   }
@@ -223,14 +264,19 @@ class Editor {
           {
             type:'component',
             componentName: 'tree',
-            componentState: {  },
+            componentState: {},
             isClosable: false,
           },
           {
             type:'stack',
             isClosable: false,
             content: [
-
+              {
+                type: 'component',
+                componentName: 'info',
+                componentState: {},
+                isClosable: false,
+              }
             ]
           },
         ]
@@ -241,39 +287,73 @@ class Editor {
     this.layout.registerComponent( 'tree', function( container, state ){
       container.getElement().html(treeTemplate);
     });
+    var infoTemplate = this.template('#info-template')
+    this.layout.registerComponent( 'info', function( container, state ){
+      container.getElement().html(infoTemplate);
+    });
 
-    var _this = this;
     this.layout.on('initialised',()=>{
-      $("#tree").treetable({
-        expandable: true,
-        onInitialized: ()=>{
-          this.load();
-        },
-        onNodeCollapse: function(e) {
-          _this.collapse($(this.row).data("tt-id"));
-        },
-        onNodeExpand: function(e)  {
-          _this.expand($(this.row).data("tt-id"))
-        }
+      var treeHtml = $('#tree')[0].outerHTML
+      this.createTree(treeHtml)
+      $('#tree-refresh').on('click', ()=>{
+        this.refresh();
       });
-      $("#tree tbody").on("mousedown", "tr", function() {
-        _this.select(this)
+      $('#tree-refresh').on('click', ()=>{
+
       });
-      $('#tree').parent().css("overflow","auto");
     });
 
     this.layout.init();
   }
 
+  createTree(html, onTreeLoad){
+    if(html){
+      this.treeHtml = html
+    }
+    var _this = this;
+    $('#tree').replaceWith(this.treeHtml)
+    $("#tree").treetable({
+      expandable: true,
+      onInitialized: ()=>{
+        this.load(onTreeLoad);
+      },
+      onNodeCollapse: function(e) {
+        _this.collapse($(this.row).data("tt-id"));
+      },
+      onNodeExpand: function(e)  {
+        _this.expand($(this.row).data("tt-id"))
+      }
+    });
+    $("#tree tbody").on("mousedown", "tr", function() {
+      _this.select(this)
+    });
+    $('#tree').parent().css("overflow","auto");
+  }
+
+  async refresh(){
+    this.filesystem = {}
+    var toExpand = _.keys(this.expanded);
+    toExpand.sort((x,y)=>{
+      return x.split('/').length > y.split('/').length
+    })
+    this.expanded = {}
+    this.createTree(null, async ()=>{
+      for(var path of toExpand){
+        await this.expand(path)
+      }
+    })
+
+  }
+
   async expand(path){
     var node = this.filesystem[path]
-    //if(node.loaded) return
-    this.dir(path, node);
-    node.loaded = true;
+    await this.dir(path, node);
+    this.expanded[path] = true
   }
 
   collapse(path){
-
+    delete this.expanded[path];
+    console.log(this.expanded)
   }
 
   select(tr){
