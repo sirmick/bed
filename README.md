@@ -24,3 +24,12 @@ Options:
 # Compilation
 
 Requires boost, openssl and C++ 11y. It also requires [crow](https://github.com/ipkn/crow), a header file only distribution is included. License is the same for both products: BSD-3.
+
+## OSX
+- Install brew (visit [brew](https://brew.sh/) website)
+- Install clang (`brew install llvm`)
+- Install openssl (`brew install openssl`)
+- Install boost (`brew install boost`)
+- Compile (`./compile.osx.sh`)
+
+## Ubuntu
