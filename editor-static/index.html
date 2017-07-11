@@ -2,7 +2,7 @@
 <head>
   <script src="http://localhost:35729/livereload.js"></script>
   <script type="text/javascript" src="node_modules/jquery/dist/jquery.min.js"></script>
-  <script type="text/javascript" src="node_modules/lodash/dist/lodash.min.js"></script>
+  <script type="text/javascript" src="node_modules/lodash/lodash.min.js"></script>
   <script type="text/javascript" src="node_modules/golden-layout/dist/goldenlayout.min.js"></script>
   <script type="text/javascript" src="node_modules/codemirror/lib/codemirror.js"></script>
   <script type="text/javascript" src="node_modules/jquery-treetable/jquery.treetable.js"></script>
@@ -13,7 +13,18 @@
   <link type="text/css" rel="stylesheet" href="node_modules/jquery-treetable/css/jquery.treetable.css" />
   <link type="text/css" rel="stylesheet" href="node_modules/jquery-treetable/css/jquery.treetable.theme.default.css" />
   <link type="text/css" rel="stylesheet" href="node_modules/jquery-treetable/css/screen.css" />
+  <link type="text/css" rel="stylesheet" href="node_modules/font-awesome/css/font-awesome.min.css" />
+  <script type="text/template" id="editor-template">
+    <div class="toolbar">
+      <a class="icon" id="s{{id}}"><i class="fa fa-floppy-o"></i>Refresh</a>
+      <a class="icon" id="r{{id}}"><i class="fa fa-refresh"></i>Save</a>
+    </div>
+    <div id="e{{id}}"></div>
+  </script>
   <script type="text/template" id="tree-template">
+    <div class="toolbar">
+      <a class="icon"><i class="fa fa-refresh"></i>Refresh</a>
+    </div>
     <table id="tree" class="treetable tree">
       <thead>
         <tr>
@@ -43,6 +54,27 @@
     border-style:none !important;
     font-family:monospace;
     font-size:small !important;
+  }
+  .icon {
+    border: 1px #777777;
+    padding: 2px;
+    border-style: solid;
+    margin: 2px;
+    border-radius: 4px;
+    font-family:Sans-Serif;
+    font-size:x-small;
+  }
+  .fa {
+    margin-right: 2px;
+  }
+  .toolbar {
+    margin: 5px;
+  }
+  .icon:hover {
+    background-color: rgba(96, 147, 245, 1);
+  }
+  .icon:active {
+    background-color: #3875d7;
   }
   </style>
 
@@ -118,8 +150,10 @@ class Editor {
       return this.flash(contents, 'red')
     }
 
+    var editorTemplate = this.template('#editor-template').replace(/\{\{id\}\}/g, node.id)
+    console.log(editorTemplate)
     this.layout.registerComponent( node.path, function( container, state ){
-      container.getElement().html(`<div id="e${node.id}"></div>`);
+      container.getElement().html(editorTemplate);
     });
 
     var component = {
