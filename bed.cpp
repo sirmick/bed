@@ -50,9 +50,14 @@ class EditorLogHandler : public ILogHandler {
 struct EditorStatic
 {
     path root;
+    map<const string, string> mime_types;
     EditorStatic() : root()
     {
-
+      map_init(mime_types)
+        (".js", "application/javascript")
+        (".html", "text/html")
+        (".css", "text/css")
+      ;
     }
 
     void set_root(path root){
@@ -75,6 +80,11 @@ struct EditorStatic
 
     void send_file(string file_path, response& res){
       path abs_path = root / file_path;
+      string ext = extension(abs_path);
+      to_lower(ext);
+      auto mime_type = mime_types.find(ext);
+      if(mime_type == mime_types.end()) res.add_header("Content-Type", "text/plain");
+      else res.add_header("Content-Type", mime_type->second);
       if (!is_regular_file(abs_path)) {
         res.code = 404;
         res.write("File not found");
@@ -305,7 +315,7 @@ int main(int argc, char **argv, char** envp)
 
     crow::logger::setLogLevel(crow::LogLevel::DEBUG);
     //crow::logger::setHandler(std::make_shared<ExampleLogHandler>());
-
+    cout << "Editing" << to_edit << endl;
     if (!ssl){
       cout << "http://" << hostname << ":" << port << "/" << endl;
       app.port(port).multithreaded().run();

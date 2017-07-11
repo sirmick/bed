@@ -14,15 +14,15 @@
   <link type="text/css" rel="stylesheet" href="node_modules/jquery-treetable/css/jquery.treetable.theme.default.css" />
   <link type="text/css" rel="stylesheet" href="node_modules/jquery-treetable/css/screen.css" />
   <script type="text/template" id="tree-template">
-    <table id="tree" class="treetable" style="border-style:none;">
+    <table id="tree" class="treetable tree">
       <thead>
         <tr>
-          <th style="white-space:nowrap">name</th>
-          <th style="min-width: 100px">mtime</th>
-          <th style="min-width: 80px">size</th>
-          <th style="min-width: 80px">owner</th>
-          <th style="min-width: 80px">group</th>
-          <th style="min-width: 90px">permissions</th>
+          <th style="white-space:nowrap">Filename</th>
+          <th style="min-width: 100px">Modified</th>
+          <th style="min-width: 80px">Size</th>
+          <th style="min-width: 80px">Owner</th>
+          <th style="min-width: 80px">Group</th>
+          <th style="min-width: 90px">Permissions</th>
       </thead>
       <tbody>
       </tbody>
@@ -36,8 +36,14 @@
   .CodeMirror {
     border: 1px solid #eee;
     height: auto;
+    font-size:small;
   }
-
+  .tree{
+    overflow: hidden;
+    border-style:none !important;
+    font-family:monospace;
+    font-size:small !important;
+  }
   </style>
 
 </head>
@@ -45,7 +51,6 @@
   <!--<div id="ide" style="height:calc( 100% - 28px ); width( 100% - 10px )"></div>-->
   <!--<div style="height:25px;"><code id="info"></code><code id="flash" style="font-weight: bold;"></code></div>-->
 <script>
-
 
 class Node {
   constructor(path, data, parent){
@@ -69,7 +74,8 @@ class Node {
       '0': '---'
     }
     var perms = this.data.permissions.toString(8)
-    this.data.permissions = permsTable[perms[0]]+permsTable[perms[1]]+permsTable[perms[2]]
+    perms = ('0000' + perms).substr(-4)
+    this.data.permissions = permsTable[perms[1]]+permsTable[perms[2]]+permsTable[perms[3]]
     this.data.modifiedTime = `${mtime.getFullYear()}-${mtime.getMonth()}-${mtime.getDate()} ${mtime.getHours()}:${mtime.getMinutes()}`
     this.path = path
     this.parent = parent
@@ -79,7 +85,7 @@ class Node {
 
 class Editor {
   constructor(){
-    this.server = 'http://localhost:18080'
+    this.server = location.href
     this.filesystem = {}
   }
   template(name){
@@ -91,7 +97,7 @@ class Editor {
     this.filesystem[node.path] = node
   }
   async load(node){
-    var r = await fetch(this.server+"/info");
+    var r = await fetch(this.server+"info");
     var r = await r.json();
     var info = `${r['user']}@${['hostname']}${r['cwd']}`
     $('#info').text(info)
@@ -106,7 +112,7 @@ class Editor {
 
   async read(node){
     if(node.editor) return;
-    var r = await fetch(this.server+"/read?p="+node.path);
+    var r = await fetch(this.server+"read?p="+node.path);
     var contents = await r.text();
     if(r.status != 200){
       return this.flash(contents, 'red')
@@ -138,7 +144,7 @@ class Editor {
 
   }
   async dir(path, parent){
-    var r = await fetch(this.server+"/ls?p="+path);
+    var r = await fetch(this.server+"ls?p="+path);
     var dir = await r.json();
     var filenames = _.keys(dir);
     filenames.sort();
@@ -219,6 +225,7 @@ class Editor {
       $("#tree tbody").on("mousedown", "tr", function() {
         _this.select(this)
       });
+      $('#tree').parent().css("overflow","auto");
     });
 
     this.layout.init();
@@ -226,7 +233,7 @@ class Editor {
 
   async expand(path){
     var node = this.filesystem[path]
-    if(node.loaded) return
+    //if(node.loaded) return
     this.dir(path, node);
     node.loaded = true;
   }

@@ -1,3 +1,4 @@
 /editor-static/node_modules
 editor
 localhost.*
+*.o
