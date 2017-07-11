@@ -33,3 +33,7 @@ Requires boost, openssl and C++ 11y. It also requires [crow](https://github.com/
 - Compile (`./compile.osx.sh`)
 
 ## Ubuntu
+- Install GCC (`sudo apt-get install build-essential`)
+- Install boost (`sudo apt-get install libboost-dev`)
+- Install openssl (`sudo apt-get install libssl-dev`)
+- Compile (`./compile.ubuntu.sh`)
