@@ -23,4 +23,4 @@ Options:
 
 # Compilation
 
-Requires boost and openssl.
+Requires boost, openssl and C++ 11y. It also requires [crow](https://github.com/ipkn/crow), a header file only distribution is included. License is the same for both products: BSD-3.
