@@ -73,7 +73,6 @@ struct EditorStatic
 
   void before_handle(request& req, response& res, context& /*ctx*/)
   {
-
     if(contains(req.url,"?")) return;
     if(contains(req.url,"..")) return;
     if(req.url == "/") return send_file("index.html", res);

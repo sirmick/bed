@@ -1,4 +1,7 @@
 # **bed** [Browser EDitor]
+
+![bed image](bed.svg)
+
 Browser based text editor
 
 Have you ever wanted to do some file editing on a remote host, but found vim/pico/nano/emacs to be just too hard? Find you files littered with ";wq"? Is remote sync like SSHFS a pain? Hangs and frequently requires reconnection?
@@ -24,6 +27,12 @@ Options:
 # Compilation
 
 Requires boost, openssl and C++ 11y. It also requires [crow](https://github.com/ipkn/crow), a header file only distribution is included. License is the same for both products: BSD-3.
+
+## All
+Install NPM (from NodeJS) and download the JavaScript/CSS dependencies. Node is not required to run the editor.
+
+`cd editor-static`
+`npm i`
 
 ## OSX
 - Install brew (visit [brew](https://brew.sh/) website)

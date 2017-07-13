@@ -129,7 +129,7 @@ class Node {
 
 class Editor {
   constructor(){
-    this.server = location.href
+    this.server = location.origin
     this.filesystem = {}
     this.expanded = {}
     this.selected = null
@@ -152,7 +152,7 @@ class Editor {
 
   async read(node){
     if(node.editor) return;
-    var r = await fetch(this.server+"read?p="+node.path);
+    var r = await fetch(this.server+"/read?p="+node.path);
     var contents = await r.text();
     if(r.status != 200){
       return this.flash(contents, 'red')
@@ -203,7 +203,7 @@ class Editor {
   }
 
   async load(onTreeLoad){
-    var r = await fetch(this.server+"info");
+    var r = await fetch(this.server+"/info");
     var r = await r.json();
     var info = `${r['user']}@${r['hostname']}${r['cwd']}`
     console.log(r)
@@ -218,7 +218,7 @@ class Editor {
     if (parent && parent.children){
       files = parent.children
     } else {
-      var r = await fetch(this.server+"ls?p="+path);
+      var r = await fetch(this.server+"/ls?p="+path);
       var dir = await r.json();
       var filenames = _.keys(dir);
       filenames.sort();
@@ -343,7 +343,7 @@ class Editor {
       else if (node.parent) path = node.parent.path
     }
     var filename = prompt("Filename", "");
-    var r = await fetch(this.server+'write?p='+path+'/'+filename, {
+    var r = await fetch(this.server+'/write?p='+path+'/'+filename, {
       method: 'POST',
       body: ''
     });
