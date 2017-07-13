@@ -248,7 +248,7 @@ int main(int argc, char **argv, char** envp)
     if (!is_regular_file(p)) return response(405, "405 Not a file");
     if(file_size(p) > 100*KB) return response(412, "412 Too large");
     stringstream buffer;
-    boost::filesystem::ifstream file(p.string());
+    std::ifstream file(p.string());
     if (!file.good()) return response(403, "403 Can't read");
     buffer << file.rdbuf();
     return response(200, buffer.str());
@@ -258,7 +258,7 @@ int main(int argc, char **argv, char** envp)
   ([](const request& req){
     string q = req.url_params.get("p");
     path p(q);
-    boost::filesystem::ofstream file(p.string());
+    std::ofstream file(p.string());
     if (!file.good()) return response(403, "403 Can't write");
     file << req.body;
     if (!file.good()) return response(403, "403 Can't write");
@@ -317,7 +317,9 @@ int main(int argc, char **argv, char** envp)
       j["."]["target"] = read_symlink(p).string();
     }
 
-    for (directory_entry& entry : directory_iterator(p)){
+    for (directory_iterator iter(p); iter != directory_iterator(); ++iter){
+      directory_entry &entry = *iter; 
+    //for (directory_entry& entry : directory_iterator(p)){
       const string pathname = entry.path().string();
       const string type  = (*(file_types.find(entry.status().type()))).second;
       const int perms = entry.status().permissions();
