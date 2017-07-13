@@ -1,6 +1,6 @@
 # **bed** [Browser EDitor]
 
-![bed image](https://raw.githubusercontent.com/sirmick/bed/master/bed.svg)
+![bed image](https://sirmick.github.io/bed/bed.svg)
 
 Browser based text editor
 
