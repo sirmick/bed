@@ -132,6 +132,8 @@ class Editor {
     this.server = location.href
     this.filesystem = {}
     this.expanded = {}
+    this.selected = null
+    this.refreshing = false
   }
   template(name){
     var template = $(name).html();
@@ -207,6 +209,7 @@ class Editor {
     console.log(r)
     $('#info-info').text(info)
     $('#info-detailed').text(JSON.stringify(r['env'], null, 2))
+    this.root = r['initial_dir']
     await this.dir(r['initial_dir'], null)
     if(onTreeLoad) onTreeLoad()
   }
@@ -298,8 +301,8 @@ class Editor {
       $('#tree-refresh').on('click', ()=>{
         this.refresh();
       });
-      $('#tree-refresh').on('click', ()=>{
-
+      $('#tree-new').on('click', ()=>{
+        this.new();
       });
     });
 
@@ -318,9 +321,11 @@ class Editor {
         this.load(onTreeLoad);
       },
       onNodeCollapse: function(e) {
+        if(_this.refreshing) return
         _this.collapse($(this.row).data("tt-id"));
       },
       onNodeExpand: function(e)  {
+        if(_this.refreshing) return
         _this.expand($(this.row).data("tt-id"))
       }
     });
@@ -330,6 +335,21 @@ class Editor {
     $('#tree').parent().css("overflow","auto");
   }
 
+  async new(){
+    var path = this.root
+    if (this.selected) {
+      var node = this.filesystem[this.selected]
+      if (node.type == 'directory') path = node.path
+      else if (node.parent) path = node.parent.path
+    }
+    var filename = prompt("Filename", "");
+    var r = await fetch(this.server+'write?p='+path+'/'+filename, {
+      method: 'POST',
+      body: ''
+    });
+    this.refresh();
+  }
+
   async refresh(){
     this.filesystem = {}
     var toExpand = _.keys(this.expanded);
@@ -337,18 +357,25 @@ class Editor {
       return x.split('/').length > y.split('/').length
     })
     this.expanded = {}
+    console.log(toExpand)
     this.createTree(null, async ()=>{
+      this.refreshing = true
       for(var path of toExpand){
+        console.log('refresh',path)
         await this.expand(path)
+        console.log('refreshed',path)
       }
+      if(this.selected) this.select($("#tree").treetable('node',this.selected).row[0])
+      this.refreshing = false
     })
-
   }
 
   async expand(path){
+    console.log('expanding', path)
     var node = this.filesystem[path]
     await this.dir(path, node);
     this.expanded[path] = true
+    console.log('expanded', path)
   }
 
   collapse(path){
@@ -360,7 +387,9 @@ class Editor {
     var path = $(tr).data("tt-id")
     $(".selected").not(tr).removeClass("selected");
     $(tr).toggleClass("selected");
+    if (this.refreshing) return;
     var node = this.filesystem[path]
+    this.selected = node.path
     if (node.data.type == 'file'){
       this.read(node)
     }
