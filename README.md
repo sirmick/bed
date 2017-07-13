@@ -1,6 +1,6 @@
 # **bed** [Browser EDitor]
 
-<img src="https://sirmick.github.io/bed/bed.svg" alt="Drawing" style="width: 300px;"/>
+<img src="https://sirmick.github.io/bed/bed.svg" alt="Bed Image" width="300px"/>
 
 
 Browser based text editor
