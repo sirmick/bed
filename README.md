@@ -2,9 +2,6 @@
 
 <img src="https://sirmick.github.io/bed/bed.svg" alt="Bed Image" width="300px"/>
 
-
-Browser based text editor
-
 Have you ever wanted to do some file editing on a remote host, but found vim/pico/nano/emacs to be just too hard? Find you files littered with ";wq"? Is remote sync like SSHFS a pain? Hangs and frequently requires reconnection?
 
 Well try **bed**! Launch bed the same way you would any text editor on your remote box, but then use the interface from your browser. No more vi, no more sshfs, just edit the files in a familiar sublime type interface, from a web browser.
